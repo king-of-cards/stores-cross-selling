@@ -3,8 +3,8 @@ const PUBLIC_URL =
 
 const ORIGINS = [
   "https://king-of-cards.github.io"
-  // "http://localhost:5500",
-  // "http://127.0.0.1:5500"
+   "http://localhost:5500",
+   "http://127.0.0.1:5500"
 ];
 
 const MAX_IMAGE = 10 * 1024 * 1024;
