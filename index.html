@@ -90,6 +90,17 @@ h2.sec{font-size:clamp(22px,2.8vw,28px)}
 .hero h1{font-size:clamp(24px,3.6vw,34px)}
 .hero p b,.sub b{color:var(--ink);font-weight:600}
 .hero h1{max-width:none}
+/* editing */
+[contenteditable]{outline:1px dashed #6b142666;outline-offset:2px;border-radius:3px;cursor:text}
+[contenteditable]:focus{outline:2px solid var(--maroon);background:#fff7e0}
+[contenteditable]:empty:before{content:"(empty)";opacity:.5}
+.rm{border:0;background:none;color:var(--maroon);font-weight:700;margin-left:6px;opacity:.6}
+.rm:hover{opacity:1}
+.addb{background:none;border:1px dashed var(--maroon);color:var(--maroon);border-radius:8px;padding:2px 10px;font-size:13px}
+li.addli{padding-left:0!important}
+li.addli:before{display:none!important}
+#adminbar button:disabled{opacity:.45;cursor:default}
+#save{background:var(--cream)!important;color:var(--maroon)!important;font-weight:600}
 /* admin bar + toast */
 .foot{text-align:center;padding:0 0 40px}
 .foot .btn{margin:0}
@@ -112,25 +123,24 @@ h2.sec{font-size:clamp(22px,2.8vw,28px)}
 </style>
 </head>
 <body>
-<div id="adminbar">Admin mode: tap any image to upload or replace it. <button id="logout" type="button">Log out</button></div>
+<div id="adminbar"><span>Admin mode: click any text or image to edit. Use **double asterisks** for bold.</span> <button id="save" type="button" disabled>Save changes</button> <button id="discard" type="button">Discard</button> <button id="logout" type="button">Log out</button></div>
 <header class="brand">King of Cards</header>
 <main>
 <section class="view on" id="home">
-  <div class="hero"><h1>We’re not just helping you<br>invite guests anymore…</h1>
-  <p><b>King of Cards</b> has collaborated with <b>wedding photography</b> and <b>Return Gifts</b> partners to bring you more ways to make your special day unforgettable.</p></div>
+  <div class="hero"><h1 id="heroH1"></h1><p id="heroP"></p></div>
   <div class="grid g2" id="homeCards"></div>
 </section>
 <section class="view" id="photo">
   <button class="crumb" data-go="home">← Back</button>
-  <h2 class="sec">Photography Partners</h2>
-  <p class="sub">Discover top <b>wedding photographers</b>, explore their work and packages, and find your perfect team.</p>
+  <h2 class="sec" id="photoT"></h2>
+  <p class="sub" id="photoS"></p>
   <div class="grid g2" id="photoVendors"></div>
 </section>
 <section class="view" id="vendor"><button class="crumb" data-go="photo">← Back to photographers</button><div id="vendorBody"></div></section>
 <section class="view" id="gift">
   <button class="crumb" data-go="home">← Back</button>
-  <h2 class="sec">Return Gifts</h2>
-  <p class="sub">Explore our trusted gifting partners for the perfect wedding return gifts, guest hampers, and thoughtful presents for family and loved ones.</p>
+  <h2 class="sec" id="giftT"></h2>
+  <p class="sub" id="giftS"></p>
   <div class="grid g2" id="giftBody"></div>
 </section>
 <section class="view" id="giftVendor"><button class="crumb" data-go="gift">← Back to Return Gifts</button><div id="giftVendorBody"></div></section>
@@ -176,6 +186,17 @@ const GIFT=[
  exp:['Handcrafted hampers, assembled and wrapped by hand','Eco-friendly baskets and wrapping','Personalised tags, names and monograms','Festive jars, candles and small-batch treats','Bridal self-care boxes for the bride and bridesmaids','Bulk orders for large guest lists'],
  testi:[['Nandini and Karan','Bridesmaid boxes','Every box felt thoughtful and handmade. My friends kept the baskets.'],['Aditi and Sameer','Guest gifts','Eco-friendly and beautiful. Several guests asked where we got them.'],['Tanya and Rishi','Haldi hampers','They customised everything, including the note cards.']]}
 ];
+
+const DEFAULT={
+  home:{h1:'We\u2019re not just helping you\ninvite guests anymore\u2026',
+    p:'**King of Cards** has collaborated with **wedding photography** and **Return Gifts** partners to bring you more ways to make your special day unforgettable.',
+    cards:[{t:'Wedding photography',d:'Every smile, every ritual, every emotional moment \u2014 captured beautifully so you can relive it for years to come.'},
+           {t:'Return Gifts',d:'Make your celebrations more thoughtful with beautiful gifts for family, friends and wedding guests.'}]},
+  photoPage:{t:'Photography Partners',s:'Discover top **wedding photographers**, explore their work and packages, and find your perfect team.'},
+  giftPage:{t:'Return Gifts',s:'Explore our trusted gifting partners for the perfect wedding return gifts, guest hampers, and thoughtful presents for family and loved ones.'},
+  photo:PHOTO,how:HOW,gift:GIFT,ghow:GHOW,occ:OCC
+};
+let C=structuredClone(DEFAULT);
 
 // Cloudflare Worker API (images and videos are stored in R2 through it)
 const API_URL = "https://king-of-cards-image-api.aamantriteinvitation.workers.dev";
@@ -326,12 +347,79 @@ const gallery=(key,label)=>{
   return `<div class="mas">${a.map((s,i)=>`<figure><img src="${s}" alt="${esc(label)}" loading="lazy">${isAdmin?`<label class="del rep" title="Replace this photo">✎<input class="vh" type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-replace="${key}|${i}"></label><button class="del" data-del="${key}|${i}" aria-label="Remove photo">×</button>`:''}</figure>`).join('')}</div>${a.length?'':(isAdmin?`<p class="sub">No photos yet.</p>`:'')}${isAdmin?`<label class="btn ghost">+ Add photos<input class="vh" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple data-multi="${key}"></label>`:''}`;
 };
 
-const pts=a=>`<ul class="pts">${a.map(x=>`<li>${x}</li>`).join('')}</ul>`;
-const testi=(a,k)=>`<div class="grid g3" style="margin-top:0">${a.map((t,i)=>{
-  const im=single(k+i),inner=`${im&&!isVideoUrl(im)?`<img src="${im}" alt="${esc(t[0])}">`:t[0][0]}`;
+/* ---------- editable content helpers ---------- */
+const getP=p=>p.split('.').reduce((o,k)=>o==null?o:o[k],C);
+const setP=(p,v)=>{const ks=p.split('.'),last=ks.pop();ks.reduce((o,k)=>o[k],C)[last]=v};
+const E=p=>` data-path="${p}"`+(isAdmin?' contenteditable="true" spellcheck="false"':'');
+const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+const raw=s=>esc(s).replace(/\n/g,'<br>');
+const T=p=>{const s=String(getP(p)??'');return isAdmin?raw(s):fmt(s)};   // allows **bold**
+const X=p=>esc(String(getP(p)??''));                                    // plain text
+function setEd(el,path,html){
+  el.innerHTML=html;el.dataset.path=path;
+  if(isAdmin){el.contentEditable='true';el.spellcheck=false}else el.removeAttribute('contenteditable');
+}
+const lis=(path,arr)=>arr.map((x,i)=>`<li><span${E(path+'.'+i)}>${esc(x)}</span>${isAdmin?`<button class="rm" data-rm="${path}|${i}" title="Remove" aria-label="Remove item">×</button>`:''}</li>`).join('')+(isAdmin?`<li class="addli"><button class="addb" data-add="${path}">+ Add item</button></li>`:'');
+const pts=(path,arr)=>`<ul class="pts">${lis(path,arr)}</ul>`;
+const testi=(a,k,path)=>`<div class="grid g3" style="margin-top:0">${a.map((t,i)=>{
+  const im=single(k+i),inner=im&&!isVideoUrl(im)?`<img src="${im}" alt="${esc(t[0])}">`:esc((t[0]||'?')[0]);
   const av=isAdmin?`<label class="av" title="Click to add photo">${inner}<input class="vh" type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-key="${k+i}"></label>`:`<div class="av">${inner}</div>`;
-  return `<div class="q"><div class="stars" aria-label="5 out of 5">★★★★★</div><p>\u201C${t[2]}\u201D</p><div class="who">${av}<div><b>${t[0]}</b><span class="ev">${t[1]}</span></div></div></div>`}).join('')}</div>`;
+  const b=path+'.'+i;
+  return `<div class="q"><div class="stars" aria-label="5 out of 5">★★★★★</div><p>\u201C<span${E(b+'.2')}>${esc(t[2])}</span>\u201D</p><div class="who">${av}<div><b${E(b+'.0')}>${esc(t[0])}</b><span class="ev"${E(b+'.1')}>${esc(t[1])}</span></div></div></div>`}).join('')}</div>`;
 const sec=(t,b)=>`<h3 class="hd">${t}</h3>${b}`;
+
+/* typing updates the content object; nothing is live until you press Save */
+let dirty=false;
+function markDirty(){dirty=true;$('#save').disabled=false}
+window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+document.addEventListener('input',e=>{
+  const el=e.target.closest&&e.target.closest('[data-path]');
+  if(!isAdmin||!el||!el.isContentEditable)return;
+  setP(el.dataset.path,el.innerText.replace(/\u00a0/g,' '));markDirty();
+});
+document.addEventListener('keydown',e=>{
+  const el=e.target.closest&&e.target.closest('[data-path][contenteditable]');
+  if(el&&e.key==='Enter'){e.preventDefault();if(el.dataset.path==='home.h1')document.execCommand('insertLineBreak')}
+});
+document.addEventListener('paste',e=>{
+  const el=e.target.closest&&e.target.closest('[data-path][contenteditable]');
+  if(!el)return;e.preventDefault();
+  const t=((e.clipboardData||window.clipboardData).getData('text/plain')||'').replace(/\s*\n\s*/g,' ');
+  document.execCommand('insertText',false,t);
+});
+document.addEventListener('click',e=>{
+  if(!isAdmin)return;
+  const rm=e.target.closest('[data-rm]'),ad=e.target.closest('[data-add]');
+  if(rm){const[p,i]=rm.dataset.rm.split('|');getP(p).splice(+i,1);markDirty();render()}
+  else if(ad){getP(ad.dataset.add).push('New item');markDirty();render()}
+});
+
+const LISTK=['usp','exp','R','M','d'];
+const clean=(v,k)=>{
+  if(Array.isArray(v)){const a=v.map(x=>clean(x));return LISTK.includes(k)?a.filter(x=>x!==''):a}
+  if(v&&typeof v==='object')return Object.fromEntries(Object.entries(v).map(([kk,x])=>[kk,clean(x,kk)]));
+  return typeof v==='string'?v.trim():v;
+};
+async function saveContent(){
+  const body=JSON.stringify(clean(C));
+  $('#save').disabled=true;toast('Saving…');
+  try{
+    const r=await fetch(API_URL+'/api/content',{method:'PUT',headers:{Authorization:'Bearer '+TOKEN,'Content-Type':'application/json'},body});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+    C=JSON.parse(body);dirty=false;render();toast('Saved. Changes are live');
+  }catch(err){$('#save').disabled=false;toast('Save failed: '+err.message,1)}
+}
+async function loadContent(){
+  try{
+    const r=await fetch(API_URL+'/api/content',{cache:'no-store'}),j=await r.json();
+    C=structuredClone(DEFAULT);
+    if(j.content&&typeof j.content==='object')for(const k of Object.keys(DEFAULT))if(j.content[k]!==undefined)C[k]=j.content[k];
+  }catch(e){}
+  dirty=false;$('#save').disabled=true;render();
+}
+$('#save').onclick=saveContent;
+$('#discard').onclick=()=>{if(dirty&&!confirm('Discard unsaved text changes?'))return;loadContent()};
 
 /* ---------- lead form ---------- */
 function leadForm(service,vendor,opts){
@@ -352,43 +440,52 @@ document.addEventListener('submit',e=>{
 });
 
 /* ---------- views ---------- */
-function pkgCard(p){return `<article class="card pkg"><h3>${p.name}</h3><div class="price">${p.price}</div>
- <div class="cols"><div><h4>Reception</h4>${'<ul>'+p.R.map(x=>`<li>${x}</li>`).join('')+'</ul>'}</div><div><h4>Muhurtham</h4>${'<ul>'+p.M.map(x=>`<li>${x}</li>`).join('')+'</ul>'}</div></div>
- <h4>Deliverables</h4><ul>${p.d.map(x=>`<li>${x}</li>`).join('')}</ul><button class="btn" style="margin-top:18px" data-pick="${p.name}">Choose package</button></article>`}
+function pkgCard(p,vi,pi){
+  const b=`photo.${vi}.pk.${pi}`;
+  return `<article class="card pkg"><h3${E(b+'.name')}>${esc(p.name)}</h3><div class="price"${E(b+'.price')}>${esc(p.price)}</div>
+ <div class="cols"><div><h4>Reception</h4><ul>${lis(b+'.R',p.R)}</ul></div><div><h4>Muhurtham</h4><ul>${lis(b+'.M',p.M)}</ul></div></div>
+ <h4>Deliverables</h4><ul>${lis(b+'.d',p.d)}</ul><button class="btn" style="margin-top:18px" data-pick="${esc(p.name)}">Choose package</button></article>`;
+}
 const customCard=`<article class="card pkg"><h3>Customised Package</h3><div class="price">Built around you</div><p class="sub">Tell us your events, team size and deliverables, and we will build a package that fits your wedding and budget.</p><button class="btn" style="margin-top:18px" data-pick="Customised Package">Choose package</button></article>`;
 
 function render(){
-  $('#homeCards').innerHTML=[['photo','Wedding photography','Every smile, every ritual, every emotional moment — captured beautifully so you can relive it for years to come.'],['gift','Return Gifts','Make your celebrations more thoughtful with beautiful gifts for family, friends and wedding guests.']].map(h=>`<article class="card vendor">${frame('home-'+h[0],h[1]+' image')}<div class="body"><h3>${h[1]}</h3><p style="margin:6px 0 18px;color:var(--mut)">${h[2]}</p><button class="btn" data-go="${h[0]}">Explore</button></div></article>`).join('');
-  $('#photoVendors').innerHTML=PHOTO.map(v=>`<article class="card vendor">${frame('cover-'+v.id,v.name+' cover')}<div class="body"><h3>${v.name}</h3><div class="hook">${v.hook}</div><ul class="usp">${v.usp.map(u=>`<li>${u}</li>`).join('')}</ul><button class="btn" data-vendor="${v.id}">Explore</button></div></article>`).join('');
-  $('#giftBody').innerHTML=GIFT.map(v=>`<article class="card vendor">${frame('gcover-'+v.id,v.name+' cover')}<div class="body"><h3>${v.name}</h3><div class="tag">${v.tag}</div><p style="margin-bottom:18px;color:var(--mut)">${v.desc}</p><button class="btn" data-gvendor="${v.id}">Explore</button></div></article>`).join('');
+  setEd($('#heroH1'),'home.h1',T('home.h1'));
+  setEd($('#heroP'),'home.p',T('home.p'));
+  setEd($('#photoT'),'photoPage.t',X('photoPage.t'));
+  setEd($('#photoS'),'photoPage.s',T('photoPage.s'));
+  setEd($('#giftT'),'giftPage.t',X('giftPage.t'));
+  setEd($('#giftS'),'giftPage.s',T('giftPage.s'));
+  $('#homeCards').innerHTML=['photo','gift'].map((k,i)=>`<article class="card vendor">${frame('home-'+k,C.home.cards[i].t+' image')}<div class="body"><h3${E(`home.cards.${i}.t`)}>${X(`home.cards.${i}.t`)}</h3><p style="margin:6px 0 18px;color:var(--mut)"${E(`home.cards.${i}.d`)}>${X(`home.cards.${i}.d`)}</p><button class="btn" data-go="${k}">Explore</button></div></article>`).join('');
+  $('#photoVendors').innerHTML=C.photo.map((v,vi)=>`<article class="card vendor">${frame('cover-'+v.id,v.name+' cover')}<div class="body"><h3${E(`photo.${vi}.name`)}>${esc(v.name)}</h3><div class="hook"${E(`photo.${vi}.hook`)}>${esc(v.hook)}</div><ul class="usp">${lis(`photo.${vi}.usp`,v.usp)}</ul><button class="btn" data-vendor="${v.id}">Explore</button></div></article>`).join('');
+  $('#giftBody').innerHTML=C.gift.map((v,vi)=>`<article class="card vendor">${frame('gcover-'+v.id,v.name+' cover')}<div class="body"><h3${E(`gift.${vi}.name`)}>${esc(v.name)}</h3><div class="tag"${E(`gift.${vi}.tag`)}>${esc(v.tag)}</div><p style="margin-bottom:18px;color:var(--mut)"${E(`gift.${vi}.desc`)}>${esc(v.desc)}</p><button class="btn" data-gvendor="${v.id}">Explore</button></div></article>`).join('');
   if($('#vendor').classList.contains('on'))openVendor(curP,1);
   if($('#giftVendor').classList.contains('on'))openGift(curG,1);
 }
 function openVendor(id,stay){
-  const v=PHOTO.find(x=>x.id===id);curP=id;const pk=[...v.pk,{name:'Customised Package'}];
-  $('#vendorBody').innerHTML=`<h2 class="vname">${v.name}</h2><p class="vtag">${v.tag}</p><div style="margin-top:18px">${vframe('hero-'+id,v.name+' film')}</div>
-  ${sec('Our expertise',pts(v.exp))}
+  const vi=C.photo.findIndex(x=>x.id===id),v=C.photo[vi];curP=id;const pk=[...v.pk,{name:'Customised Package'}];
+  $('#vendorBody').innerHTML=`<h2 class="vname"${E(`photo.${vi}.name`)}>${esc(v.name)}</h2><p class="vtag"${E(`photo.${vi}.tag`)}>${esc(v.tag)}</p><div style="margin-top:18px">${vframe('hero-'+id,v.name+' film')}</div>
+  ${sec('Our expertise',pts(`photo.${vi}.exp`,v.exp))}
   ${sec('Moments we cover',gallery('mom-'+id,v.name+' photo'))}
-  ${sec('How it works',`<div class="grid g3" style="margin-top:0">${HOW.map((h,i)=>`<div class="card step"><div class="n">0${i+1}</div><h3>${h[0]}</h3><p>${h[1]}</p></div>`).join('')}</div>`)}
-  ${sec('Packages',`<div class="grid g3" style="margin-top:0">${v.pk.map(p=>pkgCard(p)).join('')}${customCard}</div>`)}
-  ${sec('What couples say',testi(v.testi,'tp-'+id))}
+  ${sec('How it works',`<div class="grid g3" style="margin-top:0">${C.how.map((h,i)=>`<div class="card step"><div class="n">0${i+1}</div><h3${E(`how.${i}.0`)}>${esc(h[0])}</h3><p${E(`how.${i}.1`)}>${esc(h[1])}</p></div>`).join('')}</div>`)}
+  ${sec('Packages',`<div class="grid g3" style="margin-top:0">${v.pk.map((p,pi)=>pkgCard(p,vi,pi)).join('')}${customCard}</div>`)}
+  ${sec('What couples say',testi(v.testi,'tp-'+id,`photo.${vi}.testi`))}
   ${leadForm('Photography',v.name,pk.map(p=>p.name))}`;
   if(!stay)show('vendor');
 }
 function openGift(id,stay){
-  const v=GIFT.find(x=>x.id===id);curG=id;
-  $('#giftVendorBody').innerHTML=`<h2 class="vname">${v.name}</h2><p class="vtag">${v.tag}</p><div style="margin-top:18px">${frame('gban-'+id,v.name+' landscape banner','16/9')}</div>
-  ${sec('Our expertise',pts(v.exp))}
+  const vi=C.gift.findIndex(x=>x.id===id),v=C.gift[vi];curG=id;
+  $('#giftVendorBody').innerHTML=`<h2 class="vname"${E(`gift.${vi}.name`)}>${esc(v.name)}</h2><p class="vtag"${E(`gift.${vi}.tag`)}>${esc(v.tag)}</p><div style="margin-top:18px">${frame('gban-'+id,v.name+' landscape banner','16/9')}</div>
+  ${sec('Our expertise',pts(`gift.${vi}.exp`,v.exp))}
   ${sec('Our hampers',gallery('ham-'+id,v.name+' hamper'))}
-  ${sec('How it works',`<div class="grid g3" style="margin-top:0">${GHOW.map(h=>`<div class="card pt"><h3>${h[0]}</h3><p>${h[1]}</p></div>`).join('')}</div>`)}
-  ${sec('Hampers by occasion',`<div class="grid g3" style="margin-top:0">${OCC.map((o,i)=>`<div class="occ">${frame('occ-'+id+i,o)}<h4>${o}</h4></div>`).join('')}</div>`)}
-  ${sec('What couples say',testi(v.testi,'tg-'+id))}
+  ${sec('How it works',`<div class="grid g3" style="margin-top:0">${C.ghow.map((h,i)=>`<div class="card pt"><h3${E(`ghow.${i}.0`)}>${esc(h[0])}</h3><p${E(`ghow.${i}.1`)}>${esc(h[1])}</p></div>`).join('')}</div>`)}
+  ${sec('Hampers by occasion',`<div class="grid g3" style="margin-top:0">${C.occ.map((o,i)=>`<div class="occ">${frame('occ-'+id+i,o)}<h4${E('occ.'+i)}>${esc(o)}</h4></div>`).join('')}</div>`)}
+  ${sec('What couples say',testi(v.testi,'tg-'+id,`gift.${vi}.testi`))}
   ${leadForm('Return Gifts',v.name)}`;
   if(!stay)show('giftVendor');
 }
 
-render();            // show the page immediately
-initAdmin().then(load); // then check admin and pull media from the API
+render();                                   // show the page immediately
+initAdmin().then(()=>{load();loadContent()}); // then pull images and text from the API
 </script>
 </body>
 </html>
