@@ -3,8 +3,8 @@ const PUBLIC_URL =
 
 const ORIGINS = [
   "https://king-of-cards.github.io"
-//   "http://localhost:5500",
-//   "http://127.0.0.1:5500"
+  // "http://localhost:5500",
+  // "http://127.0.0.1:5500"
 ];
 
 const MAX_IMAGE = 10 * 1024 * 1024;
@@ -77,6 +77,26 @@ function orderOf(o) {
 }
 const byOrder = (a, b) =>
   orderOf(a) - orderOf(b) || a.key.localeCompare(b.key);
+
+const CONTENT_KEY = "content/site.json";
+const MAX_CONTENT = 200 * 1024;
+
+// Only plain JSON data with sane sizes is accepted
+function validContent(v, depth = 0) {
+  if (depth > 8) return false;
+  if (typeof v === "string") return v.length <= 5000;
+  if (typeof v === "number" || typeof v === "boolean" || v === null) return true;
+  if (Array.isArray(v)) {
+    return v.length <= 200 && v.every(x => validContent(x, depth + 1));
+  }
+  if (typeof v === "object") {
+    const entries = Object.entries(v);
+    return entries.length <= 100 && entries.every(
+      ([k, x]) => k.length <= 100 && validContent(x, depth + 1)
+    );
+  }
+  return false;
+}
 
 function buildImages(objects) {
   const images = {};
@@ -162,6 +182,59 @@ export default {
         return authorized(request, env)
           ? json({authenticated: true})
           : json({error: "Unauthorized"}, 401);
+      }
+
+      // ---- Editable page content (text) stored as one JSON file ----
+      if (url.pathname === "/api/content") {
+        if (request.method === "GET") {
+          const obj = await bucket.get(CONTENT_KEY);
+          if (!obj) return json({content: null});
+          let content = null;
+          try { content = JSON.parse(await obj.text()); } catch (e) {}
+          return json({content, updated: obj.uploaded.toISOString()});
+        }
+
+        if (request.method === "PUT") {
+          if (!authorized(request, env)) {
+            return json({error: "Unauthorized"}, 401);
+          }
+
+          const text = await request.text();
+          if (text.length > MAX_CONTENT) {
+            return json({error: "Content too large"}, 413);
+          }
+
+          let data;
+          try { data = JSON.parse(text); }
+          catch (e) { return json({error: "Invalid JSON"}, 400); }
+
+          const ok = data && typeof data === "object" &&
+            !Array.isArray(data) &&
+            data.home && typeof data.home === "object" &&
+            Array.isArray(data.photo) && Array.isArray(data.gift) &&
+            Array.isArray(data.how) && Array.isArray(data.ghow) &&
+            Array.isArray(data.occ) &&
+            data.photo.every(v => v && typeof v.id === "string") &&
+            data.gift.every(v => v && typeof v.id === "string") &&
+            validContent(data);
+
+          if (!ok) return json({error: "Invalid content"}, 400);
+
+          const body = JSON.stringify(data);
+          const opts = {httpMetadata: {contentType: "application/json"}};
+
+          await bucket.put(CONTENT_KEY, body, opts);
+          await bucket.put(`content/versions/${Date.now()}.json`, body, opts);
+
+          // keep only the 10 newest saved versions
+          const versions = await listAll(bucket, "content/versions/");
+          versions.sort((a, b) => b.key.localeCompare(a.key));
+          await deleteKeys(bucket, versions.slice(10).map(o => o.key));
+
+          return json({success: true});
+        }
+
+        return json({error: "Method not allowed"}, 405);
       }
 
       if (url.pathname !== "/api/images") {
