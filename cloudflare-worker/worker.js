@@ -2,9 +2,9 @@ const PUBLIC_URL =
   "https://pub-ce63f017c2bb4a7e8168a54119308bf5.r2.dev";
 
 const ORIGINS = [
-  "https://king-of-cards.github.io",
-  "http://localhost:5500",
-  "http://127.0.0.1:5500"
+  "https://king-of-cards.github.io"
+//   "http://localhost:5500",
+//   "http://127.0.0.1:5500"
 ];
 
 const MAX_IMAGE = 10 * 1024 * 1024;
@@ -69,13 +69,20 @@ async function deleteKeys(bucket, keys) {
   }
 }
 
+// Stable gallery order. Keys made by this worker start with a 13-digit
+// timestamp; older keys fall back to their upload time.
+function orderOf(o) {
+  const m = o.key.split("/").pop().match(/^(\d{13})-/);
+  return m ? Number(m[1]) : o.uploaded.getTime();
+}
+const byOrder = (a, b) =>
+  orderOf(a) - orderOf(b) || a.key.localeCompare(b.key);
+
 function buildImages(objects) {
   const images = {};
 
- objects.sort((a, b) =>
-  a.uploaded.getTime() - b.uploaded.getTime() ||
-  a.key.localeCompare(b.key)
-);
+  objects.sort(byOrder);
+
   for (const object of objects) {
     const parts = object.key.split("/");
     if (parts.length !== 4) continue;
@@ -110,6 +117,7 @@ export default {
     cors["Access-Control-Allow-Headers"] =
       "Authorization, Content-Type";
     cors["Access-Control-Max-Age"] = "86400";
+    cors["Cache-Control"] = "no-store"; // always return the latest list
 
     const json = (data, status = 200) =>
       response(data, status, cors);
@@ -234,52 +242,49 @@ export default {
           return json({error: "File content invalid"}, 400);
         }
 
-        // Replace one selected gallery image
-const indexParam = url.searchParams.get("index");
+        const indexParam = url.searchParams.get("index");
 
-if (request.method === "PUT" && indexParam !== null) {
-  const index = Number(indexParam);
+        // Replace one gallery image in place (keeps its position)
+        if (request.method === "PUT" && indexParam !== null) {
+          const index = Number(indexParam);
 
-  if (!Number.isSafeInteger(index) || index < 0) {
-    return json({error: "Invalid gallery index"}, 400);
-  }
+          if (!Number.isSafeInteger(index) || index < 0) {
+            return json({error: "Invalid gallery index"}, 400);
+          }
 
-  if (isVideo) {
-    return json({error: "Gallery requires images"}, 400);
-  }
+          if (isVideo) {
+            return json({error: "Gallery requires images"}, 400);
+          }
 
-  const gallery = (
-    await listAll(bucket, `media/g/${slot}/`)
-  ).sort((a, b) =>
-    a.uploaded.getTime() - b.uploaded.getTime() ||
-    a.key.localeCompare(b.key)
-  );
+          const gallery = (
+            await listAll(bucket, `media/g/${slot}/`)
+          ).sort(byOrder);
 
-  const oldImage = gallery[index];
+          const oldImage = gallery[index];
 
-  if (!oldImage) {
-    return json({error: "Gallery image not found"}, 404);
-  }
+          if (!oldImage) {
+            return json({error: "Gallery image not found"}, 404);
+          }
 
-  const newKey =
-    `media/g/${slot}/${crypto.randomUUID()}.${ext}`;
+          // New file inherits the old file's position
+          const newKey =
+            `media/g/${slot}/${orderOf(oldImage)}-${crypto.randomUUID()}.${ext}`;
 
-  await bucket.put(newKey, file.stream(), {
-    httpMetadata: {contentType: file.type}
-  });
+          await bucket.put(newKey, file.stream(), {
+            httpMetadata: {contentType: file.type}
+          });
+          await bucket.delete(oldImage.key);
 
-  await bucket.delete(oldImage.key);
-
-  return json({
-    success: true,
-    url: publicUrl(newKey)
-  });
-}
+          return json({success: true, url: publicUrl(newKey)});
+        }
 
         const group = request.method === "POST"
           ? "g" : isVideo ? "v" : "s";
 
-        const key = `media/${group}/${slot}/${crypto.randomUUID()}.${ext}`;
+        // Gallery keys carry a timestamp so their order is stable
+        const stamp = group === "g" ? `${Date.now()}-` : "";
+        const key =
+          `media/${group}/${slot}/${stamp}${crypto.randomUUID()}.${ext}`;
 
         await bucket.put(key, file.stream(), {
           httpMetadata: {contentType: file.type}
@@ -309,10 +314,7 @@ if (request.method === "PUT" && indexParam !== null) {
           }
 
           const gallery = (await listAll(bucket, `media/g/${slot}/`))
-  .sort((a, b) =>
-    a.uploaded.getTime() - b.uploaded.getTime() ||
-    a.key.localeCompare(b.key)
-  );
+            .sort(byOrder);
 
           if (!gallery[index]) {
             return json({error: "Image not found"}, 404);
