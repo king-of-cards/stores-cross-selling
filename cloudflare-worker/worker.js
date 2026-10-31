@@ -2,13 +2,13 @@ const PUBLIC_URL =
   "https://pub-ce63f017c2bb4a7e8168a54119308bf5.r2.dev";
 
 const ORIGINS = [
-  "https://king-of-cards.github.io"
-  // "http://localhost:5500",
-  // "http://127.0.0.1:5500"
+  "https://king-of-cards.github.io",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500"
 ];
 
 const MAX_IMAGE = 10 * 1024 * 1024;
-const MAX_VIDEO = 50 * 1024 * 1024;
+const MAX_VIDEO = 95 * 1024 * 1024;
 
 function response(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -305,7 +305,8 @@ export default {
           "image/gif": ascii.startsWith("GIF8"),
           "image/webp": ascii.startsWith("RIFF") &&
             ascii.slice(8, 12) === "WEBP",
-          "video/mp4": ascii.slice(4, 8) === "ftyp",
+          "video/mp4": ["ftyp", "moov", "mdat", "free", "wide", "skip"]
+            .includes(ascii.slice(4, 8)),
           "video/webm": bytes[0] === 26 &&
             bytes[1] === 69 && bytes[2] === 223 &&
             bytes[3] === 163
