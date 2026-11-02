@@ -381,51 +381,20 @@ li.addli:before{display:none!important}
   margin-bottom: 6px;
 }
 /* King of Cards logo on all pages */
-header.brand {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 25px 20px;
-}
-
-#siteLogo {
-  width: 220px;
-  max-width: 70vw;
-  margin: 0 auto;
-}
-
-#siteLogo .fr {
-  border: none;
-  background: transparent;
-}
-
-#siteLogo .fr img {
-  display: block;
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-}
-
-#siteLogo .fr {
-  border: none;
-  background: transparent;
-}
-
-#siteLogo .fr img {
-  width: 100%;
-  height: auto;
-  object-fit: contain;
-}
-
-#siteLogo .fr .ph {
-  min-height: 110px;
-}
-
+header.brand{display:flex;justify-content:center;align-items:center;padding:8px 20px 0}
+#siteLogo{width:80px;max-width:30vw;margin:0 auto}
+#siteLogo .fr{border:none;background:transparent}
+#siteLogo .fr img{display:block;width:100%;height:auto;object-fit:contain}
+#siteLogo .fr .ph{min-height:60px}
+#siteLogo .chg{font-size:10px;padding:2px 7px;right:0;bottom:0}
+@media(max-width:600px){#siteLogo{width:64px}}
 /* Dark green headings on all four partner pages */
 #vendor .vname,
 #giftVendor .vname {
   color: #1d4d3b !important;
 }
+.dots{background:none;border:0;color:var(--mut);font-size:26px;line-height:1;letter-spacing:2px;padding:4px 14px;border-radius:8px;opacity:.35}
+.dots:hover,.dots:focus-visible{opacity:1;background:#6b142614}
 </style>
 </head>
 <body>
@@ -472,7 +441,7 @@ header.brand {
 </section>
 <section class="view" id="giftVendor"><button class="crumb" data-go="gift">← Back to Return Gifts</button><div id="giftVendorBody"></div></section>
 </main>
-<footer class="foot"><button id="adminlink" class="btn" type="button">Admin login</button></footer>
+<footer class="foot"><button id="adminlink" class="dots" type="button" aria-label="Admin login" title="Admin login">⋯</button></footer>
 <div id="loginbox" role="dialog" aria-modal="true" aria-labelledby="ltitle">
   <div class="dlg">
     <h3 id="ltitle">Admin login</h3>
