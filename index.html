@@ -258,6 +258,128 @@ li.addli:before{display:none!important}
     overflow-wrap: break-word;
   }
 }
+/* Homepage - Why We're the Right Vibe */
+
+.vibe-section {
+  margin-top: 36px;
+  padding: 28px 24px;
+  background: #f5eee6;
+  border-radius: 18px;
+}
+
+.vibe-section h2 {
+  text-align: center;
+  font-size: 25px;
+  margin-bottom: 24px;
+}
+
+.vibe-list {
+  display: grid;
+  gap: 12px;
+}
+
+.vibe-list > div {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #fffdf8;
+  padding: 16px 20px;
+  border-radius: 12px;
+}
+
+.vibe-list span {
+  color: #ad8863;
+  font-size: 26px;
+  font-weight: 700;
+  min-width: 42px;
+}
+
+.vibe-list strong {
+  font-size: 15px;
+}
+
+.vibe-cta {
+  margin-top: 18px;
+  background: #6b1426;
+  color: white;
+  text-align: center;
+  padding: 22px;
+  border-radius: 12px;
+}
+
+.vibe-cta h3 {
+  color: white;
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+
+.vibe-connect {
+  border: 0;
+  background: transparent;
+  color: white;
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .vibe-section {
+    padding: 22px 14px;
+  }
+
+  .vibe-list > div {
+    gap: 12px;
+    padding: 14px;
+  }
+}
+
+/* Package deliverables dropdown */
+
+/* Simple Deliverables dropdown without box */
+
+.deliverables-dropdown {
+  margin-top: 12px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.deliverables-dropdown summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b1426;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.deliverables-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.deliverables-dropdown summary::after {
+  content: "▼";
+  font-size: 11px;
+}
+
+.deliverables-dropdown[open] summary::after {
+  content: "▲";
+}
+
+.deliverables-dropdown ul {
+  margin: 12px 0 0;
+  padding-left: 22px;
+  border: none;
+  background: transparent;
+}
+
+.deliverables-dropdown li {
+  margin-bottom: 6px;
+}
 
 </style>
 </head>
@@ -268,6 +390,25 @@ li.addli:before{display:none!important}
 <section class="view on" id="home">
   <div class="hero"><h1 id="heroH1"></h1><p id="heroP"></p></div>
   <div class="grid g2" id="homeCards"></div>
+
+<section class="vibe-section">
+  <h2>Why We’re the Right Vibe! 💫</h2>
+
+  <div class="vibe-list">
+    <div><span>01</span><strong>Trusted Brands, One Place</strong></div>
+    <div><span>02</span><strong>We’ve Got Your Back</strong></div>
+    <div><span>03</span><strong>Industry-Trusted Experts</strong></div>
+    <div><span>04</span><strong>50,000+ Happy Families</strong></div>
+    <div><span>05</span><strong>Personalised Support</strong></div>
+  </div>
+
+  <div class="vibe-cta">
+    <h3>Let’s make every celebration unforgettable!</h3>
+    <button class="vibe-connect" type="button">
+      Connect with trusted partners ↓
+    </button>
+  </div>
+</section>
 </section>
 <section class="view" id="photo">
   <button class="crumb" data-go="home">← Back</button>
@@ -497,6 +638,12 @@ const shrink=f=>f.type==='image/gif'?Promise.resolve(f):new Promise(res=>{
 });
 
 /* ---------- navigation ---------- */
+document.addEventListener('click', e => {
+  if (e.target.closest('.vibe-connect')) {
+    document.getElementById('homeCards')
+      .scrollIntoView({ behavior: 'smooth' });
+  }
+});
 function show(id){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===id));scrollTo(0,0)}
 document.addEventListener('click',async e=>{
   const t=e.target.closest.bind(e.target);let b;
@@ -851,10 +998,12 @@ function pkgCard(p,vi,pi){
         <ul>${lis(b+'.M',p.M)}</ul>
       </div>
 
-      <div>
-        <h4>Deliverables</h4>
-        <ul>${lis(b+'.d',p.d)}</ul>
-      </div>
+      <div class="deliverables-section">
+  <details class="deliverables-dropdown">
+    <summary>Deliverables</summary>
+    <ul>${lis(b+'.d',p.d)}</ul>
+  </details>
+</div>
 
     </div>
 
