@@ -174,6 +174,91 @@ li.addli:before{display:none!important}
   padding: 10px 25px;
   cursor: pointer;
 }
+
+/* How it works: three cards in one row on tablets */
+@media (min-width: 601px) and (max-width: 1024px) {
+  .how-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .how-steps .step,
+  .how-steps .pt {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .how-steps h3 {
+    font-size: 16px;
+    overflow-wrap: break-word;
+  }
+
+  .how-steps p {
+    font-size: 13px;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Photography package layout on tablets */
+@media (min-width: 601px) and (max-width: 1024px) {
+
+  .package-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 18px;
+  }
+
+  .package-grid .pkg {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .package-grid .package-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.4fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .package-grid .package-details > * {
+    min-width: 0;
+  }
+
+  .package-grid .price {
+    font-size: 25px;
+  }
+
+  .package-grid .package-details li {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Display all 3 testimonials in one row on tablets */
+@media (min-width: 601px) and (max-width: 1024px) {
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px;
+  }
+
+  .testimonials-grid > * {
+    min-width: 0;
+  }
+
+  .testimonials-grid p {
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+  }
+
+  .testimonials-grid h3,
+  .testimonials-grid strong {
+    font-size: 14px;
+    overflow-wrap: break-word;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -557,9 +642,9 @@ function setEd(el,path,html){
   el.innerHTML=html;el.dataset.path=path;
   if(isAdmin){el.contentEditable='true';el.spellcheck=false}else el.removeAttribute('contenteditable');
 }
-const lis=(path,arr)=>arr.map((x,i)=>`<li><span${E(path+'.'+i)}>${esc(x)}</span>${isAdmin?`<button class="rm" data-rm="${path}|${i}" title="Remove" aria-label="Remove item">×</button>`:''}</li>`).join('')+(isAdmin?`<li class="addli"><button class="addb" data-add="${path}">+ Add item</button></li>`:'');
+const lis=(path,arr)=>arr.map((x,i)=>`<li><span${E(path+'.'+i)}>${isAdmin?esc(x):fmt(x)}</span>${isAdmin?`<button class="rm" data-rm="${path}|${i}" title="Remove" aria-label="Remove item">×</button>`:''}</li>`).join('')+(isAdmin?`<li class="addli"><button class="addb" data-add="${path}">+ Add item</button></li>`:'');
 const pts=(path,arr)=>`<ul class="pts">${lis(path,arr)}</ul>`;
-const testi=(a,k,path)=>`<div class="grid g3" style="margin-top:0">${a.map((t,i)=>{
+const testi=(a,k,path)=>`<div class="grid g3 testimonials-grid" style="margin-top:0">${a.map((t,i)=>{
   const im=single(k+i),inner=im&&!isVideoUrl(im)?`<img src="${im}" alt="${esc(t[0])}">`:esc((t[0]||'?')[0]);
   const av=isAdmin?`<label class="av" title="Click to add photo">${inner}<input class="vh" type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-key="${k+i}"></label>`:`<div class="av">${inner}</div>`;
   const b=path+'.'+i;
@@ -620,30 +705,169 @@ $('#save').onclick=saveContent;
 $('#discard').onclick=()=>{if(dirty&&!confirm('Discard unsaved text changes?'))return;loadContent()};
 
 /* ---------- lead form ---------- */
-function leadForm(service,vendor,opts){
-  return `<div class="lead" id="leadform"><h3>Your details</h3><p>Share your name and phone number. ${vendor} will call you.</p>
-  <form data-service="${service}" data-vendor="${vendor}" novalidate>
-    <input name="name" placeholder="Your name" aria-label="Your name" autocomplete="name">
-    <input name="phone" placeholder="10-digit phone number" aria-label="Phone number" inputmode="numeric" autocomplete="tel">
-    ${opts?`<select name="pkg" aria-label="Package">${opts.map(o=>`<option>${o}</option>`).join('')}</select>`:''}
-    <button class="btn" type="submit">Request a call</button><div class="err" role="alert"></div></form></div>`;
+
+function leadForm(service, vendor, opts) {
+  return `<div class="lead" id="leadform">
+    <h3>Your details</h3>
+    <p>Share your name and phone number. ${esc(vendor)} will call you.</p>
+
+    <form data-service="${esc(service)}"
+          data-vendor="${esc(vendor)}"
+          novalidate>
+
+      <input
+        name="name"
+        placeholder="Your name"
+        aria-label="Your name"
+        autocomplete="name"
+        maxlength="100"
+        required
+      >
+
+      <input
+        name="phone"
+        placeholder="10-digit phone number"
+        aria-label="Phone number"
+        inputmode="numeric"
+        autocomplete="tel"
+        required
+      >
+
+      ${opts ? `<select name="pkg" aria-label="Package">
+        ${opts.map(o => `<option>${esc(o)}</option>`).join('')}
+      </select>` : ''}
+
+      <input
+        type="text"
+        name="website"
+        tabindex="-1"
+        autocomplete="off"
+        aria-hidden="true"
+        style="position:absolute;left:-9999px"
+      >
+
+      <button class="btn" type="submit">Request a call</button>
+      <div class="err" role="alert"></div>
+    </form>
+  </div>`;
 }
-document.addEventListener('submit',e=>{
-  e.preventDefault();const f=e.target,n=f.name.value.trim(),p=f.phone.value.replace(/[\s-]/g,'').replace(/^(\+91|0)/,''),err=f.querySelector('.err');
-  if(n.length<2){err.textContent='Enter your name.';return}
-  if(!/^[6-9]\d{9}$/.test(p)){err.textContent='Enter a valid 10-digit mobile number.';return}
-  leads.unshift({name:n,phone:p,service:f.dataset.service+(f.elements.pkg?' - '+f.elements.pkg.value:''),vendor:f.dataset.vendor,time:new Date().toLocaleString()});
-  try{localStorage.setItem('koc_leads',JSON.stringify(leads))}catch(x){}
-  f.parentElement.innerHTML=`<div class="ok">Thank you, ${esc(n)}. ${f.dataset.vendor} will call you on ${p} soon.</div>`;
+
+document.addEventListener('submit', async e => {
+  const f = e.target;
+
+  if (!f.matches('#leadform form')) return;
+
+  e.preventDefault();
+
+  const name = f.elements.namedItem('name').value.trim();
+
+  const phone = f.elements.namedItem('phone').value
+    .replace(/[\s-]/g, '')
+    .replace(/^(\+91|0)/, '');
+
+  const pkg = f.elements.namedItem('pkg')?.value || '';
+
+  const err = f.querySelector('.err');
+  const btn = f.querySelector('button[type="submit"]');
+
+  err.textContent = '';
+
+  if (name.length < 2 || name.length > 100) {
+    err.textContent = 'Enter a valid name.';
+    return;
+  }
+
+  if (!/^[6-9]\d{9}$/.test(phone)) {
+    err.textContent = 'Enter a valid 10-digit mobile number.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  try {
+    const response = await fetch(API_URL + '/api/leads', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name,
+        phone,
+        service: f.dataset.service,
+        vendor: f.dataset.vendor,
+        package: pkg,
+        website: f.elements.namedItem('website')?.value || ''
+      })
+    });
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Unable to save enquiry');
+    }
+
+    f.parentElement.innerHTML = `
+      <div class="ok">
+        Thank you, ${esc(name)}.
+        Your enquiry has been submitted successfully.
+        Our team will contact you soon.
+      </div>
+    `;
+
+  } catch (error) {
+    console.error('Enquiry submission failed:', error);
+
+    err.textContent =
+      'Could not submit your enquiry. Please try again.';
+
+    btn.disabled = false;
+    btn.textContent = 'Request a call';
+  }
 });
 
 /* ---------- views ---------- */
+
 function pkgCard(p,vi,pi){
   const b=`photo.${vi}.pk.${pi}`;
-  return `<article class="card pkg"><h3${E(b+'.name')}>${esc(p.name)}</h3><div class="price"${E(b+'.price')}>${esc(p.price)}</div>
- <div class="cols"><div><h4>Reception</h4><ul>${lis(b+'.R',p.R)}</ul></div><div><h4>Muhurtham</h4><ul>${lis(b+'.M',p.M)}</ul></div></div>
- <h4>Deliverables</h4><ul>${lis(b+'.d',p.d)}</ul><button class="btn" style="margin-top:18px" data-pick="${esc(p.name)}">Choose package</button></article>`;
+
+  return `<article class="card pkg">
+
+    <h3${E(b+'.name')}>${esc(p.name)}</h3>
+
+    <div class="price"${E(b+'.price')}>
+      ${esc(p.price)}
+    </div>
+
+    <div class="package-details">
+
+      <div>
+        <h4>Reception</h4>
+        <ul>${lis(b+'.R',p.R)}</ul>
+      </div>
+
+      <div>
+        <h4>Muhurtham</h4>
+        <ul>${lis(b+'.M',p.M)}</ul>
+      </div>
+
+      <div>
+        <h4>Deliverables</h4>
+        <ul>${lis(b+'.d',p.d)}</ul>
+      </div>
+
+    </div>
+
+    <button
+      class="btn"
+      style="margin-top:18px"
+      data-pick="${esc(p.name)}">
+      Choose package
+    </button>
+
+  </article>`;
 }
+
 const customCard=`<article class="card pkg"><h3>Customised Package</h3><div class="price">Built around you</div><p class="sub">Tell us your events, team size and deliverables, and we will build a package that fits your wedding and budget.</p><button class="btn" style="margin-top:18px" data-pick="Customised Package">Choose package</button></article>`;
 
 function render(){
@@ -664,8 +888,8 @@ function openVendor(id,stay){
   $('#vendorBody').innerHTML=`<h2 class="vname"${E(`photo.${vi}.name`)}>${esc(v.name)}</h2><p class="vtag"${E(`photo.${vi}.tag`)}>${esc(v.tag)}</p><div style="margin-top:18px">${vframe('hero-'+id,v.name+' film')}</div>
   ${sec('Our expertise',pts(`photo.${vi}.exp`,v.exp))}
   ${sec('Moments we cover',gallery('mom-'+id,v.name+' photo'))}
-  ${sec('How it works',`<div class="grid g3" style="margin-top:0">${C.how.map((h,i)=>`<div class="card step"><div class="n">0${i+1}</div><h3${E(`how.${i}.0`)}>${esc(h[0])}</h3><p${E(`how.${i}.1`)}>${esc(h[1])}</p></div>`).join('')}</div>`)}
-  ${sec('Packages',`<div class="grid g3" style="margin-top:0">${v.pk.map((p,pi)=>pkgCard(p,vi,pi)).join('')}${customCard}</div>`)}
+  ${sec('How it works',`<div class="grid g3 how-steps" style="margin-top:0">${C.how.map((h,i)=>`<div class="card step"><div class="n">0${i+1}</div><h3${E(`how.${i}.0`)}>${esc(h[0])}</h3><p${E(`how.${i}.1`)}>${esc(h[1])}</p></div>`).join('')}</div>`)}
+  ${sec('Packages',`<div class="grid g3 package-grid" style="margin-top:0">${v.pk.map((p,pi)=>pkgCard(p,vi,pi)).join('')}${customCard}</div>`)}
   ${sec('What couples say',testi(v.testi,'tp-'+id,`photo.${vi}.testi`))}
   ${leadForm('Photography',v.name,pk.map(p=>p.name))}`;
   if(!stay)show('vendor');
@@ -675,8 +899,7 @@ function openGift(id,stay){
   $('#giftVendorBody').innerHTML=`<h2 class="vname"${E(`gift.${vi}.name`)}>${esc(v.name)}</h2><p class="vtag"${E(`gift.${vi}.tag`)}>${esc(v.tag)}</p><div style="margin-top:18px">${frame('gban-'+id,v.name+' landscape banner','16/9')}</div>
   ${sec('Our expertise',pts(`gift.${vi}.exp`,v.exp))}
   ${sec('Our hampers',gallery('ham-'+id,v.name+' hamper'))}
-  ${sec('How it works',`<div class="grid g3" style="margin-top:0">${C.ghow.map((h,i)=>`<div class="card pt"><h3${E(`ghow.${i}.0`)}>${esc(h[0])}</h3><p${E(`ghow.${i}.1`)}>${esc(h[1])}</p></div>`).join('')}</div>`)}
-  ${sec('Hampers by occasion',`<div class="grid g3" style="margin-top:0">${C.occ.map((o,i)=>`<div class="occ">${frame('occ-'+id+i,o)}<h4${E('occ.'+i)}>${esc(o)}</h4></div>`).join('')}</div>`)}
+  ${sec('How it works',`<div class="grid g3 how-steps" style="margin-top:0">${C.ghow.map((h,i)=>`<div class="card pt"><h3${E(`ghow.${i}.0`)}>${esc(h[0])}</h3><p${E(`ghow.${i}.1`)}>${esc(h[1])}</p></div>`).join('')}</div>`)}
   ${sec('What couples say',testi(v.testi,'tg-'+id,`gift.${vi}.testi`))}
   ${leadForm('Return Gifts',v.name)}`;
   if(!stay)show('giftVendor');
