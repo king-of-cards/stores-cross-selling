@@ -3,8 +3,10 @@ const PUBLIC_URL =
 
 const ORIGINS = [
   "https://king-of-cards.github.io",
-  "http://localhost:5500",
-  "http://127.0.0.1:5500"
+  //   "http://localhost:5500",
+  // "http://127.0.0.1:5500",
+  // "http://localhost:5501",
+  // "http://127.0.0.1:5501"
 ];
 
 const MAX_IMAGE = 10 * 1024 * 1024;
@@ -236,6 +238,101 @@ export default {
 
         return json({error: "Method not allowed"}, 405);
       }
+      
+      // Public customer enquiry endpoint
+      if (url.pathname === "/api/leads") {
+
+        if (request.method !== "POST") {
+          return json({error: "Method not allowed"}, 405);
+        }
+
+        if (origin && !ORIGINS.includes(origin)) {
+          return json({error: "Origin not allowed"}, 403);
+        }
+
+        if (!env.SHEETS_WEB_APP_URL || !env.SHEETS_SHARED_SECRET) {
+          return json({error: "Lead service not configured"}, 503);
+        }
+
+        const raw = await request.text();
+
+        if (raw.length > 4096) {
+          return json({error: "Request too large"}, 413);
+        }
+
+        let lead;
+
+        try {
+          lead = JSON.parse(raw);
+        } catch (_) {
+          return json({error: "Invalid JSON"}, 400);
+        }
+
+        if (!lead || typeof lead !== "object" || Array.isArray(lead)) {
+          return json({error: "Invalid enquiry"}, 400);
+        }
+
+        // Hidden spam-trap field
+        if (lead.website) {
+          return json({success: true});
+        }
+
+        const name = String(lead.name || "").trim();
+        const phone = String(lead.phone || "").trim();
+        const service = String(lead.service || "").trim();
+        const vendor = String(lead.vendor || "").trim();
+        const pkg = String(lead.package || "").trim();
+
+        if (
+          name.length < 2 ||
+          name.length > 100 ||
+          !/^[6-9]\d{9}$/.test(phone) ||
+          !service ||
+          service.length > 100 ||
+          !vendor ||
+          vendor.length > 100 ||
+          pkg.length > 100
+        ) {
+          return json({error: "Invalid enquiry details"}, 400);
+        }
+
+        try {
+          const upstream = await fetch(env.SHEETS_WEB_APP_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "text/plain;charset=UTF-8"
+            },
+            body: JSON.stringify({
+              secret: env.SHEETS_SHARED_SECRET,
+              name,
+              phone,
+              service,
+              vendor,
+              package: pkg
+            }),
+            redirect: "follow"
+          });
+
+          const reply = await upstream.json();
+
+          if (!upstream.ok || !reply.success) {
+            throw new Error("Sheet rejected enquiry");
+          }
+
+          return json({
+            success: true,
+            enquiryId: reply.enquiryId
+          });
+
+        } catch (err) {
+          console.error("Lead delivery failed", err);
+
+          return json({
+            error: "Could not save enquiry. Please try again."
+          }, 502);
+        }
+      }
+
 
       if (url.pathname !== "/api/images") {
         return json({error: "Not found"}, 404);
