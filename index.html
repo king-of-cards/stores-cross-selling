@@ -380,12 +380,59 @@ li.addli:before{display:none!important}
 .deliverables-dropdown li {
   margin-bottom: 6px;
 }
+/* King of Cards logo on all pages */
+header.brand {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 25px 20px;
+}
 
+#siteLogo {
+  width: 220px;
+  max-width: 70vw;
+  margin: 0 auto;
+}
+
+#siteLogo .fr {
+  border: none;
+  background: transparent;
+}
+
+#siteLogo .fr img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+#siteLogo .fr {
+  border: none;
+  background: transparent;
+}
+
+#siteLogo .fr img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+#siteLogo .fr .ph {
+  min-height: 110px;
+}
+
+/* Dark green headings on all four partner pages */
+#vendor .vname,
+#giftVendor .vname {
+  color: #1d4d3b !important;
+}
 </style>
 </head>
 <body>
 <div id="adminbar"><span>Admin mode: click any text or image to edit. Use **double asterisks** for bold.</span> <button id="save" type="button" disabled>Save changes</button> <button id="discard" type="button">Discard</button> <button id="logout" type="button">Log out</button></div>
-<header class="brand">King of Cards</header>
+<header class="brand">
+  <div id="siteLogo"></div>
+</header>
 <main>
 <section class="view on" id="home">
   <div class="hero"><h1 id="heroH1"></h1><p id="heroP"></p></div>
@@ -632,7 +679,8 @@ const shrink=f=>f.type==='image/gif'?Promise.resolve(f):new Promise(res=>{
     const k=Math.min(1,1600/Math.max(im.width,im.height)),c=document.createElement('canvas');
     c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
     c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);
-    c.toBlob(b=>res(b?new File([b],'image.jpg',{type:'image/jpeg'}):f),'image/jpeg',.85)
+    const alpha=f.type==='image/png'||f.type==='image/webp',type=alpha?'image/png':'image/jpeg';
+    c.toBlob(b=>res(b?new File([b],alpha?'image.png':'image.jpg',{type}):f),type,.85)
   };
   im.onerror=()=>res(f);im.src=u;
 });
@@ -1020,6 +1068,11 @@ function pkgCard(p,vi,pi){
 const customCard=`<article class="card pkg"><h3>Customised Package</h3><div class="price">Built around you</div><p class="sub">Tell us your events, team size and deliverables, and we will build a package that fits your wedding and budget.</p><button class="btn" style="margin-top:18px" data-pick="Customised Package">Choose package</button></article>`;
 
 function render(){
+  $('#siteLogo').innerHTML = frame(
+  'kingofcards-logo',
+  'King of Cards Logo',
+  '3/2'
+);
   setEd($('#heroH1'),'home.h1',T('home.h1'));
   setEd($('#heroP'),'home.p',T('home.p'));
   setEd($('#photoT'),'photoPage.t',X('photoPage.t'));
